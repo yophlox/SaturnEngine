@@ -7,7 +7,7 @@ import flixel.FlxSprite;
 import flixel.FlxG;
 import flixel.util.FlxColor;
 import flixel.util.FlxStringUtil;
-import saturn.LevelState;
+import saturn.states.PlayState;
 
 class HUD extends FlxSpriteGroup
 {
@@ -53,7 +53,7 @@ class HUD extends FlxSpriteGroup
 
     public function updateText()
     {
-        scoreTxt.text = "" + LevelState.curScore;
+        scoreTxt.text = "" + PlayState.curScore;
         timeTxt.text = "" + FlxStringUtil.formatTime(time);
     }
 }
