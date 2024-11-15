@@ -12,10 +12,6 @@ class Sonic extends FlxSprite
 	private static inline var DECELERATION_SPEED:Float = 0.5;
 	private static inline var FRICTION_SPEED:Float = 0.046875;
 	private static inline var TOP_SPEED:Float = 6;
-	private static inline var AIR_ACCELERATION_SPEED:Float = 0.09375;
-	private static inline var GRAVITY_FORCE:Float = 0.21875;
-	private static inline var MAX_Y_SPEED:Float = 16;
-	private static inline var JUMP_FORCE:Float = 6.5;
 
 	// Physics & size constants
 	private static inline var STANDING_WIDTH_RADIUS:Float = 9;
@@ -23,6 +19,7 @@ class Sonic extends FlxSprite
 	private static inline var ROLLING_WIDTH_RADIUS:Float = 7;
 	private static inline var ROLLING_HEIGHT_RADIUS:Float = 14;
 	private static inline var PUSH_RADIUS:Float = 10;
+	private static inline var JUMP_FORCE:Float = 6.5;
 
 	// Hitbox constants
 	private static inline var HITBOX_WIDTH_RADIUS:Float = 8;
@@ -40,9 +37,6 @@ class Sonic extends FlxSprite
 	// Movement variables
 	private var groundSpeed:Float = 0;
 	private var controlLockTimer:Float = 0;
-	private var xSpeed:Float = 0;
-	private var ySpeed:Float = 0;
-	private var isAirborne:Bool = false;
 
 	public function new(X:Float, Y:Float)
 	{
@@ -54,7 +48,6 @@ class Sonic extends FlxSprite
 		animation.addByPrefix("idle", "idle", 24, true);
 		animation.addByPrefix("walk", "walk", 24, true);
 		animation.addByPrefix("run", "run", 24, true);
-        animation.addByPrefix("jump", "roll", 24, true);
 		
 		animation.play("idle");
 		
@@ -97,130 +90,73 @@ class Sonic extends FlxSprite
 
 	private function handleMovement():Void
 	{
-		// Handle jumping from ground
-		if (!isAirborne && FlxG.keys.justPressed.Z)
+		if (controlLockTimer > 0 && isTouchingFloor())
 		{
-			animation.play("jump");
-			isAirborne = true;
-			ySpeed = -JUMP_FORCE;
-			xSpeed = groundSpeed;
-		}
-
-		if (isAirborne)
-		{
-			handleAirMovement();
-			x += xSpeed;
-			y += ySpeed;
-		}
-		else 
-		{
-			if (controlLockTimer > 0 && isTouchingFloor())
-			{
-				controlLockTimer--;
-				if (!FlxG.keys.pressed.LEFT && !FlxG.keys.pressed.RIGHT)
-				{
-					applyFriction();
-				}
-				return;
-			}
-
-			if (FlxG.keys.pressed.LEFT)
-			{
-				if (groundSpeed > 0)
-				{
-					groundSpeed -= DECELERATION_SPEED;
-					if (groundSpeed <= 0)
-						groundSpeed = -0.5;
-				}
-				else if (groundSpeed > -TOP_SPEED)
-				{
-					groundSpeed -= ACCELERATION_SPEED;
-					if (groundSpeed <= -TOP_SPEED)
-						groundSpeed = -TOP_SPEED;
-				}
-			}
-
-			if (FlxG.keys.pressed.RIGHT)
-			{
-				if (groundSpeed < 0)
-				{
-					groundSpeed += DECELERATION_SPEED;
-					if (groundSpeed >= 0)
-						groundSpeed = 0.5;
-				}
-				else if (groundSpeed < TOP_SPEED)
-				{
-					groundSpeed += ACCELERATION_SPEED;
-					if (groundSpeed >= TOP_SPEED)
-						groundSpeed = TOP_SPEED;
-				}
-			}
-
+			controlLockTimer--;
 			if (!FlxG.keys.pressed.LEFT && !FlxG.keys.pressed.RIGHT)
 			{
 				applyFriction();
 			}
+			return;
+		}
 
-			if (groundSpeed != 0)
+		if (FlxG.keys.pressed.LEFT)
+		{
+			if (groundSpeed > 0)
 			{
-				var absSpeed = Math.abs(groundSpeed);
-				if (absSpeed >= RUN_SPEED_THRESHOLD)
-				{
-					animation.play("run");
-				}
-				else if (absSpeed > 0)
-				{
-					animation.play("walk");
-				}
-				
-				flipX = (groundSpeed < 0);
+				groundSpeed -= DECELERATION_SPEED;
+				if (groundSpeed <= 0)
+					groundSpeed = -0.5;
 			}
-			else
+			else if (groundSpeed > -TOP_SPEED)
 			{
-				animation.play("idle");
+				groundSpeed -= ACCELERATION_SPEED;
+				if (groundSpeed <= -TOP_SPEED)
+					groundSpeed = -TOP_SPEED;
+			}
+		}
+
+		if (FlxG.keys.pressed.RIGHT)
+		{
+			if (groundSpeed < 0)
+			{
+				groundSpeed += DECELERATION_SPEED;
+				if (groundSpeed >= 0)
+					groundSpeed = 0.5;
+			}
+			else if (groundSpeed < TOP_SPEED)
+			{
+				groundSpeed += ACCELERATION_SPEED;
+				if (groundSpeed >= TOP_SPEED)
+					groundSpeed = TOP_SPEED;
+			}
+		}
+
+		if (!FlxG.keys.pressed.LEFT && !FlxG.keys.pressed.RIGHT)
+		{
+			applyFriction();
+		}
+
+		if (groundSpeed != 0)
+		{
+			var absSpeed = Math.abs(groundSpeed);
+			if (absSpeed >= RUN_SPEED_THRESHOLD)
+			{
+				animation.play("run");
+			}
+			else if (absSpeed > 0)
+			{
+				animation.play("walk");
 			}
 			
-			x += groundSpeed;
+			flipX = (groundSpeed < 0);
+		}
+		else
+		{
+			animation.play("idle");
 		}
 		
-		xSpeed = groundSpeed;
-		ySpeed = 0;
-	}
-
-	private function handleAirMovement():Void
-	{
-		// Air acceleration
-		if (FlxG.keys.pressed.LEFT && xSpeed > -TOP_SPEED)
-		{
-			xSpeed -= AIR_ACCELERATION_SPEED;
-			if (xSpeed < -TOP_SPEED) xSpeed = -TOP_SPEED;
-		}
-		
-		if (FlxG.keys.pressed.RIGHT && xSpeed < TOP_SPEED)
-		{
-			xSpeed += AIR_ACCELERATION_SPEED;
-			if (xSpeed > TOP_SPEED) xSpeed = TOP_SPEED;
-		}
-		
-		if (ySpeed < 0 && ySpeed > -4)
-		{
-			xSpeed -= ((Math.floor(xSpeed / 0.125)) / 256);
-		}
-		
-		ySpeed += GRAVITY_FORCE;
-		if (ySpeed > MAX_Y_SPEED) ySpeed = MAX_Y_SPEED; // Y speed cap (remove if you want, idc lol, only here because Sonic can possible move so fast that he passes through the ground.)
-		
-		if (xSpeed != 0)
-		{
-			flipX = (xSpeed < 0);
-		}
-
-		if (isTouchingFloor())
-		{
-			isAirborne = false;
-			groundSpeed = xSpeed;
-			y = FlxG.height - height;
-		}
+		x += groundSpeed;
 	}
 
 	private function applyFriction():Void
@@ -237,6 +173,6 @@ class Sonic extends FlxSprite
 
 	private function isTouchingFloor():Bool
 	{
-		return y >= FlxG.height - height;
+		return true;
 	}
 }
